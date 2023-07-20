@@ -84,42 +84,52 @@ def get_itemlist(preset_id):
         param2.update(choices=params[1][1], label=params[1][0], interactive=is_interactive[1])
 
 def load_data(dataloader, *args):    
-    args = (_ for _ in args if len(_) > 0)
     data, prompt = dataloader(*args)
     return data, prompt
 
-def get_image_file(tool):
-    tool.save_image()
+def save_image_file(dataloader):
+    dataloader.save_image()
+
+def save_output(dataloader, output):
+    dataloader.save_output(output)
 
 with gr.Blocks(theme=theme) as demo:
     with gr.Row():
         with gr.Column(variant="panel"):
             gr.Markdown("## 1 컨텐츠 내용 선정하기")
-            content_titles = gr.Dropdown(list(title_preset.values()), info="주제를 선택하세요.", type='index', label="주제")
-            with gr.Row(variant="compact") as item_params:
+            with gr.Row(variant="default"):
+                content_titles = gr.Dropdown(list(title_preset.values()), type='index', interactive=True, label="주제")
+                prompt_type = gr.Dropdown(list(script_preset.values()), type='index', interactive=True, label="스크립트 스타일")
+            with gr.Row(variant="default"):
                 param1 = gr.Dropdown([], visible=True, interactive=False, label="세부 주제1")
                 param2 = gr.Dropdown([], visible=True, interactive=False, label="세부 주제2")
-            prompt_type = gr.Dropdown(list(script_preset.values()), info="어떤 컨텐츠를 만들고 싶은지 선택하세요.", type='index', label="스크립트 스타일")
+                
             tool = gr.State()
-            with gr.Accordion("데이터 직접 업로드하기", open=False):
-                data_file = gr.File(label="Local file")
-            btn_data = gr.Button("데이터와 프롬프트 가져오기", variant="secondary")
-        with gr.Column():
+            preset = gr.Examples([
+                ["네이버 쇼핑 트렌드", "선풍기", "많이 구매한 상품", "간단히 요약하기"],
+            ],
+            inputs = [content_titles, param1, param2, prompt_type],
+            label = "Examples",
+            )
+            # with gr.Accordion("데이터 직접 업로드하기", open=False):
+            #     data_file = gr.File(label="Local file")
+            btn_data = gr.Button("데이터와 프롬프트 가져오기", variant="primary")
+        with gr.Column(variant="panel"):
             gr.Markdown("## 2 스크립트 만들기")
-            data = gr.Text(label="컨텐츠 관련 자료", max_lines=5)
+            data = gr.Text(label="컨텐츠 관련 자료", lines=4, max_lines=4)
             prompt = gr.Textbox(interactive=True, max_lines=1, label="프롬프트")
             api_key = gr.Textbox(placeholder="sk-...", label="OPENAI_API_KEY", value=None, type="password")
-            output = gr.Textbox(interactive=False, max_lines=5, label="스크립트", show_copy_button=True)
-    generate = gr.Button("스크립트 생성하기", variant="primary")
+            generate = gr.Button("스크립트 생성하기", variant="primary")
+    output = gr.Textbox(interactive=False, max_lines=5, label="스크립트", show_copy_button=True)
     with gr.Row():
-        save_image = gr.Button("컨텐츠 이미지 저장하기")
-        save_data = gr.Button("컨텐츠 이미지 저장하기")
-        save_prompt = gr.Button("프롬프트 저장하기")
+        btn_save_image = gr.Button("🖼️ 컨텐츠 이미지 저장하기")
+        btn_save_output = gr.Button("📋 스크립트 저장하기")
 
     content_titles.change(fn=get_tool, inputs=[content_titles], outputs=[tool]).then(get_itemlist, [content_titles], [param1, param2])
-    btn_data.click(fn=load_data, inputs=[tool, param1, param2], outputs=[data, prompt])
+    btn_data.click(fn=load_data, inputs=[tool, param1, param2, prompt_type], outputs=[data, prompt])
     generate.click(fn=create_content, inputs=[tool, api_key], outputs=output)
-    save_image.click(fn=get_image_file, inputs=[tool])
+    btn_save_image.click(fn=save_image_file, inputs=[tool])
+    btn_save_output.click(fn=save_output, inputs=[tool, output])
     
 if __name__ == "__main__":
     demo.queue(concurrency_count=10).launch()
